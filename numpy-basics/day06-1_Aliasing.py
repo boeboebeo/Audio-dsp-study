@@ -415,6 +415,23 @@ def frequency_dependent_harmonic_limit():
     axes[0].set_title('Frequency-Dependent Harmonic Limit')
     axes[0].grid(True, alpha=0.3, axis='y')
 
+    for i, (note, harm) in enumerate(zip(note_names, max_harmonics)):
+        axes[0].text(i, harm + 10, str(harm), ha='center', fontsize=10)
+    
+    # Spectrum illustration for different notes
+    t = np.linspace(0, DURATION, int(SAMPLE_RATE * DURATION), endpoint=False)
+    
+    colors = plt.cm.viridis(np.linspace(0, 1, len(frequencies)))
+    
+    for idx, (freq, note, color) in enumerate(zip(frequencies, note_names, colors)):
+        max_harm = int(nyquist / freq)
+        
+        # Generate with proper harmonic limit
+        signal_limited = np.zeros_like(t)
+        for n in range(1, min(max_harm + 1, 50)):  # limit to 50 for speed
+            amplitude = 1 / n
+            signal_limited += amplitude * np.sin(2 * np.pi * n * freq * t)
+
 
 
 
