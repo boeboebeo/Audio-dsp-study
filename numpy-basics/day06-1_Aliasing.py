@@ -407,7 +407,7 @@ def frequency_dependent_harmonic_limit():
         max_harmonics.append(max_harm)
     
     # Visualization
-    fig, axes = plt.subplots(2, 1, figsize=(14, 10))
+    fig, axes = plt.subplots(2, 1, figsize=(10, 8))
     
     # Bar chart of max harmonics
     axes[0].bar(note_names, max_harmonics, color='skyblue', edgecolor='black')
@@ -432,8 +432,29 @@ def frequency_dependent_harmonic_limit():
             amplitude = 1 / n
             signal_limited += amplitude * np.sin(2 * np.pi * n * freq * t)
 
+        # FFT
+        N = len(signal_limited)
+        fft_result = fft(signal_limited)
+        freqs_fft = fftfreq(N, 1/SAMPLE_RATE)
+        positive_freqs = freqs_fft[:N//2]
+        magnitude = np.abs(fft_result[:N//2]) * 2 / N
+        
+        # Plot (only show up to 10kHz for clarity)
+        mask = positive_freqs < 10000
+        axes[1].plot(positive_freqs[mask], magnitude[mask], 
+                    linewidth=1, alpha=0.7, color=color, label=note)
+    
+    axes[1].set_xlabel('Frequency (Hz)')
+    axes[1].set_ylabel('Magnitude')
+    axes[1].set_title('Spectra with Proper Harmonic Limiting')
+    axes[1].legend(loc='upper right')
+    axes[1].grid(True, alpha=0.3)
+    axes[1].axvline(nyquist, color='red', linestyle='--', linewidth=2, label='Nyquist')
 
+    plt.tight_layout()
+    plt.show()
 
+frequency_dependent_harmonic_limit()
 
 
 
