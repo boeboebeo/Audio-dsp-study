@@ -57,8 +57,54 @@ def blit_impulse_train(freq, duration, sample_rate):
 
     """
 
+    """
+    1) Impulse : 한 점에서만 값이 있고 나머지는 0인 신호 + 모든 주파수를 동시에 포함
+        ex. impulse = [0, 0, 0, 1, 0, 0, 0] (한 부분만 1, 나머지는 0)
+
+        # Impulse 생성
+        impulse = np.zeros(100)
+        impulse[50] = 1  # 50번째 위치에만 1
+
+    2) Impulse train(임펄스 열) : 일정한 간격으로 반복되는 임펄스 열
+        ex. 주기 t 마다 임펄스 발생 
+        ex. impulse train의 FFT = 또 다른 impulse train
+    
+    """
+
     t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
     
     # Calculate M (number of harmonics below Nyquist)
     nyquist = sample_rate / 2
     M = int(nyquist / freq)
+
+    # Phase for impulse train
+    phase = (freq * t) % 1.0
+
+    # BLIT formula
+    # Avoid division by zero : epsilon(아주작은값 = 0 으로 나누는것을 방지하는 안전장치)
+        # = 1e-10 = 0.0000000001.
+        # 만약 denominator 가 0일 경우, 에러날 수 있으므로, epsilon을 더해서 처리함
+        # phase = 0, 1, 2, 3, 4 ..(정수)인 경우 np.sin(np.pi * phase) = 0 이기 때문에 나눗셈 불가능
+            # => 그래서 M * np.sin(np.pi * phase + epsilon) 해서 아주 살짝 틀어지게 함
+    epsilon = 1e-10
+    denominator = M * np.sin(np.pi * phase + epsilon)
+        #분모
+    numerator = np.sin(np.pi * M * phase)
+        #분자
+
+    blit = numerator / (denominator + epsilon)
+
+    # Normalize (정규화)
+    blit = blit / M
+
+    return blit, t, M
+
+def blit_to_sawtooth(blit_signal, sample_rate):
+    """
+    Convert BLIT to sawtooth via integration (적분)
+    
+    Integration = cumulative sum (누적합)
+    Leaky integrator (누설 적분기) to prevent DC buildup
+    """
+    # Leaky integrator coefficient (DC 차단 계수)
+    leak = 0.999
