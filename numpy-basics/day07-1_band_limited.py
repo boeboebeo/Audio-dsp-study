@@ -13,6 +13,7 @@ from scipy import signal
 SAMPLE_RATE = 44100
 DURATION = 1.0
 
+
 def blit_impulse_train(freq, duration, sample_rate):
     """
     BLIT : Band-limited Impulse Train (대역 제한 임펄스 열)
@@ -57,20 +58,6 @@ def blit_impulse_train(freq, duration, sample_rate):
 
     """
 
-    """
-    1) Impulse : 한 점에서만 값이 있고 나머지는 0인 신호 + 모든 주파수를 동시에 포함
-        ex. impulse = [0, 0, 0, 1, 0, 0, 0] (한 부분만 1, 나머지는 0)
-
-        # Impulse 생성
-        impulse = np.zeros(100)
-        impulse[50] = 1  # 50번째 위치에만 1
-
-    2) Impulse train(임펄스 열) : 일정한 간격으로 반복되는 임펄스 열
-        ex. 주기 t 마다 임펄스 발생 
-        ex. impulse train의 FFT = 또 다른 impulse train
-    
-    """
-
     t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
     
     # Calculate M (number of harmonics below Nyquist)
@@ -99,6 +86,7 @@ def blit_impulse_train(freq, duration, sample_rate):
 
     return blit, t, M
 
+
 def blit_to_sawtooth(blit_signal, sample_rate):
     """
     Convert BLIT to sawtooth via integration (적분)
@@ -109,9 +97,9 @@ def blit_to_sawtooth(blit_signal, sample_rate):
     # Leaky integrator coefficient (DC 차단 계수)
     leak = 0.999
         # leak : 0.999
-        # 매 샘플 0.1% 감소하게 함 -> DC 누적 방지, 발산방지, 안정적인 sawtooth
+        # 매 샘플 0.1% 감소하게 함 -> DC 누적 방지, 발산방지, 안정적인 sawtooth. 안정적 적분
         # 순수 적분 = 발산 / Leaky 적분  = 안정적 sawtooth
-
+ 
     saw = np.zeros_like(blit_signal)
     accumulator = 0
     
@@ -124,3 +112,38 @@ def blit_to_sawtooth(blit_signal, sample_rate):
     saw = 2 * saw - 1  # center around 0
     
     return saw
+
+def polyblep_residual(t, dt):
+    """
+    PolyBLEP: Polynomial Band-Limited Step (다항식 대역 제한 계단)
+    
+    Concept:
+    - Add correction polynomial at discontinuities (불연속점에 보정 다항식 추가)
+    - Very efficient (매우 효율적)
+    - Good quality (좋은 품질)
+    
+    Polynomial residual (잔차 다항식):
+    - Smooths out the discontinuity (불연속점 부드럽게)
+    - 2nd order polynomial (2차 다항식)
+    
+    Parameters:
+    - t: phase distance from discontinuity (불연속점으로부터 위상 거리)
+    - dt: phase increment per sample (샘플당 위상 증가량)
+    """
+
+
+
+
+"""
+    1) Impulse : 한 점에서만 값이 있고 나머지는 0인 신호 + 모든 주파수를 동시에 포함
+        ex. impulse = [0, 0, 0, 1, 0, 0, 0] (한 부분만 1, 나머지는 0)
+
+        # Impulse 생성
+        impulse = np.zeros(100)
+        impulse[50] = 1  # 50번째 위치에만 1
+
+    2) Impulse train(임펄스 열) : 일정한 간격으로 반복되는 임펄스 열
+        ex. 주기 t 마다 임펄스 발생 
+        ex. impulse train의 FFT = 또 다른 impulse train
+    
+    """
