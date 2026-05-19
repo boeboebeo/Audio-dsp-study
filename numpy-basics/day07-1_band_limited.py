@@ -116,6 +116,7 @@ def blit_to_sawtooth(blit_signal, sample_rate):
 def polyblep_residual(t, dt):
     """
     PolyBLEP: Polynomial Band-Limited Step (다항식 대역 제한 계단)
+        => 불연속점(계단)을 부드럽게 만들어서 aliasing 을 줄이는 기법
     
     Concept:
     - Add correction polynomial at discontinuities (불연속점에 보정 다항식 추가)
@@ -130,7 +131,16 @@ def polyblep_residual(t, dt):
     - t: phase distance from discontinuity (불연속점으로부터 위상 거리)
     - dt: phase increment per sample (샘플당 위상 증가량)
     """
-
+    if t < dt:
+        # Rising edge (상승 에지)
+        t = t / dt
+        return t + t - t * t - 1.0
+    elif t > 1.0 - dt:
+        # Falling edge (하강 에지)
+        t = (t - 1.0) / dt
+        return t * t + t + t + 1.0
+    else:
+        return 0.0
 
 
 
@@ -147,3 +157,15 @@ def polyblep_residual(t, dt):
         ex. impulse train의 FFT = 또 다른 impulse train
     
     """
+
+""" Naive vs PolyBLEP vs BLIT vs Additive 
+
+1)
+
+2)
+
+3)
+
+4)
+
+"""
