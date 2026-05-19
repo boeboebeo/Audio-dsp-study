@@ -141,6 +141,17 @@ def polyblep_residual(t, dt):
         return t * t + t + t + 1.0
     else:
         return 0.0
+    
+
+def polyblep_sawtooth(freq, duration, sample_rate):
+    """
+    PolyBLEP sawtooth generation
+    
+    Algorithm:
+    1. Generate naive sawtooth (기본 톱니파 생성)
+    2. Detect discontinuities (불연속점 감지)
+    3. Apply PolyBLEP correction (보정 적용)
+    """
 
 
 
