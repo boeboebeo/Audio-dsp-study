@@ -176,6 +176,88 @@ def polyblep_sawtooth(freq, duration, sample_rate):
 
     return output, t
 
+def compare_blit_polyblep_naive():
+    """
+    BLIT vs PolyBLEP vs Naive 비교
+    """
+    freq = 440
+    
+    # Generate signals
+    blit, t, M = blit_impulse_train(freq, DURATION, SAMPLE_RATE)
+    saw_blit = blit_to_sawtooth(blit, SAMPLE_RATE)
+    
+    saw_polyblep, _ = polyblep_sawtooth(freq, DURATION, SAMPLE_RATE)
+    
+    # Naive for reference
+    phase = (freq * t) % 1.0
+    saw_naive = 2 * phase - 1
+    
+    # FFT analysis
+    N = len(saw_blit)
+    fft_blit = fft(saw_blit)
+    fft_poly = fft(saw_polyblep)
+    fft_naive = fft(saw_naive)
+    
+    freqs = fftfreq(N, 1/SAMPLE_RATE)
+    positive_freqs = freqs[:N//2]
+    mag_blit = np.abs(fft_blit[:N//2]) * 2 / N
+    mag_poly = np.abs(fft_poly[:N//2]) * 2 / N
+    mag_naive = np.abs(fft_naive[:N//2]) * 2 / N
+    
+    fig, axes = plt.subplots(2, 3, figsize=(14, 8))
+    
+    # Time domain
+    plot_samples = int(0.01 * SAMPLE_RATE)
+    t_plot = t[:plot_samples] * 1000
+    
+    axes[0, 0].plot(t_plot, saw_naive[:plot_samples], linewidth=1.5, color='red')
+    axes[0, 0].set_ylabel('Amplitude')
+    axes[0, 0].set_title('Naive Sawtooth')
+    axes[0, 0].grid(True, alpha=0.3)
+    
+    axes[0, 1].plot(t_plot, saw_blit[:plot_samples], linewidth=1.5, color='blue')
+    axes[0, 1].set_ylabel('Amplitude')
+    axes[0, 1].set_title(f'BLIT Sawtooth (M={M} harmonics)')
+    axes[0, 1].grid(True, alpha=0.3)
+    
+    axes[0, 2].plot(t_plot, saw_polyblep[:plot_samples], linewidth=1.5, color='green')
+    axes[0, 2].set_ylabel('Amplitude')
+    axes[0, 2].set_title('PolyBLEP Sawtooth')
+    axes[0, 2].grid(True, alpha=0.3)
+    
+    # Frequency domain (full spectrum)
+    axes[1, 0].plot(positive_freqs, mag_naive, linewidth=0.5, color='red', alpha=0.7)
+    axes[1, 0].set_xlim(0, SAMPLE_RATE / 2)
+    axes[1, 0].set_xlabel('Frequency (Hz)')
+    axes[1, 0].set_ylabel('Magnitude')
+    axes[1, 0].set_title('Naive Spectrum (aliasing!)')
+    axes[1, 0].grid(True, alpha=0.3)
+    axes[1, 0].set_yscale('log')
+    axes[1, 0].axvline(SAMPLE_RATE / 2, color='black', linestyle='--', alpha=0.5)
+    
+    axes[1, 1].plot(positive_freqs, mag_blit, linewidth=0.5, color='blue', alpha=0.7)
+    axes[1, 1].set_xlim(0, SAMPLE_RATE / 2)
+    axes[1, 1].set_xlabel('Frequency (Hz)')
+    axes[1, 1].set_ylabel('Magnitude')
+    axes[1, 1].set_title('BLIT Spectrum (clean!)')
+    axes[1, 1].grid(True, alpha=0.3)
+    axes[1, 1].set_yscale('log')
+    axes[1, 1].axvline(SAMPLE_RATE / 2, color='black', linestyle='--', alpha=0.5)
+    
+    axes[1, 2].plot(positive_freqs, mag_poly, linewidth=0.5, color='green', alpha=0.7)
+    axes[1, 2].set_xlim(0, SAMPLE_RATE / 2)
+    axes[1, 2].set_xlabel('Frequency (Hz)')
+    axes[1, 2].set_ylabel('Magnitude')
+    axes[1, 2].set_title('PolyBLEP Spectrum (clean!)')
+    axes[1, 2].grid(True, alpha=0.3)
+    axes[1, 2].set_yscale('log')
+    axes[1, 2].axvline(SAMPLE_RATE / 2, color='black', linestyle='--', alpha=0.5)
+    
+    plt.tight_layout()
+    plt.show()
+
+compare_blit_polyblep_naive()
+
 
 """
     1) Impulse : 한 점에서만 값이 있고 나머지는 0인 신호 + 모든 주파수를 동시에 포함
@@ -201,4 +283,16 @@ def polyblep_sawtooth(freq, duration, sample_rate):
 
 4)
 
+"""
+
+"""사전 지식
+
+필수:
+- Sinc 함수 모양
+- Low-pass filter 개념
+- 푸리에 변환 기본 (주파수↔시간)
+
+선택:
+- 복소수 (더 깊은 이해)
+- 푸리에 급수 (수학적 증명)
 """
