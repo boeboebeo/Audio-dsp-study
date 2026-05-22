@@ -76,7 +76,7 @@ def demonstrate_aliasing():
     plt.tight_layout()
     plt.show()
 
-# demonstrate_aliasing()
+demonstrate_aliasing()
 
 
 def naive_sawtooth_aliasing():
@@ -170,7 +170,7 @@ def naive_sawtooth_aliasing():
     plt.tight_layout()
     plt.show()
 
-# naive_sawtooth_aliasing()
+naive_sawtooth_aliasing()
 
 def oversampling_antialiasing():
     """
@@ -229,7 +229,7 @@ def oversampling_antialiasing():
 
     #Downsample
     saw_downsampled = saw_filtered[::oversample_factor]
-        #다시 오버샘플링 한 만큼(x4)의 간격의 것들만 고르기 
+        #다시 오버샘플링 한 만큼(x4)의 간격의 것들만 고르기 => 원래의 샘플레이트
     
     #compare with naive version
     t_normal = np.linspace(0, DURATION, int(SAMPLE_RATE * DURATION), endpoint=False)
@@ -284,6 +284,7 @@ def oversampling_antialiasing():
     plt.tight_layout()
     plt.show()
 
+oversampling_antialiasing()
 
 def additive_synthesis_antialiasing():
     """
@@ -383,6 +384,8 @@ def additive_synthesis_antialiasing():
 
     plt.tight_layout()
     plt.show()
+
+additive_synthesis_antialiasing()
     
 
 def frequency_dependent_harmonic_limit():
