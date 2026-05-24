@@ -113,6 +113,9 @@ def blit_to_sawtooth(blit_signal, sample_rate):
     for i in range(len(blit_signal)):
         accumulator = leak * accumulator + blit_signal[i]
         saw[i] = accumulator
+
+    # DC 제거! (핵심)
+    # saw = saw - np.mean(saw)
     
     # Normalize to [-1, 1]
     saw = saw / np.max(np.abs(saw))
