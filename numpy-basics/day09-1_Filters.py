@@ -3,6 +3,9 @@
 DAY 9: Filters (Biquad & State Variable Filters)
 ==============================================
 Goal: 필터의 수학적 원리를 이해하고 다양한 필터 타입을 구현한다.
+
+    -> 계수가 왜 그렇게 나오는지 추가로 더 공부해야함
+        + 아직 위상과 그걸 radian 으로 보는것이 익숙하지 않은것같다. (260527)
 """
 
 import numpy as np
@@ -97,7 +100,7 @@ def biquad_filter(signal_input, filter_type, cutoff_freq, resonance, sample_rate
 
     if filter_type == 'lowpass': # 느린 변화의 낮은 주파수는 유지, 빠른 변화의 높은 주파수는 통과
         b0 = (1 - cos_omega) / 2
-        b1 = 1 - cos_omega
+        b1 = 1 - cos_omega #얘가 양수가 나오면 
         b2 = (1 - cos_omega) / 2
         a0 = 1 + alpha
         a1 = -2 * cos_omega
@@ -133,7 +136,7 @@ def biquad_filter(signal_input, filter_type, cutoff_freq, resonance, sample_rate
         
     elif filter_type == 'notch':
         b0 = 1
-        b1 = -2 * cos_omega
+        b1 = -2 * cos_omega  # COF 주파수 대역이 정확히 상쇄 -> 그 주파수만 제거
         b2 = 1
         a0 = 1 + alpha
         a1 = -2 * cos_omega
@@ -142,8 +145,219 @@ def biquad_filter(signal_input, filter_type, cutoff_freq, resonance, sample_rate
     # Normalize coefficients (정규화)
     b = np.array([b0, b1, b2]) / a0
     a = np.array([1, a1 / a0, a2 / a0])
+        
+    # 원래의 차분방정식은 
+    # a0·y[n] = b0·x[n] + b1·x[n-1] + b2·x[n-2] - a1·y[n-1] - a2·y[n-2] 이런 형태인데,
+    # 컴퓨터가 실제로 계산하려면 y[n] 혼자서 왼쪽에 있어야 하므로 양변을 a0 로 나눔
+    # => y[n] = (b0/a0)·x[n] + (b1/a0)·x[n-1] + (b2/a0)·x[n-2]
+    #    - (a1/a0)·y[n-1] - (a2/a0)·y[n-2]
+        # 그걸 한줄씩 해ㅐ놓은게, b = , a =  이라는 배열
+
 
     # Apply filter using difference equation
     filtered = signal.lfilter(b, a, signal_input)
+        # lfilter : 정규화된 b, a 계수로 차분방정식을 신호 전체에 샘플 하나하나 적용하게 해줌
+        # 직접 하면 for 문 돌려야 하는데 lfilter가 signal_input 의 모든 샘플에 대해 자동으로 반복해주게 함
 
     return filtered, b, a
+
+def plot_frequency_response(b, a, sample_rate, title):
+    """
+    Plot filter frequency response (주파수 응답)
+
+    - Magnitude response: gain at each frequency (각 주파수의 이득)
+    - Phase response: phase shift at each frequency (각 주파수의 위상 변화)    
+    """
+    w, h = signal.freqz(b, a, worN=8000, fs=sample_rate)
+
+    fig, axes = plt.subplots(2, 1, figsize = (10, 8))
+
+    # Magnitude response
+    axes[0].plot(w, 20 * np.log10(abs(h)), linewidth=2, color='blue')
+    axes[0].set_ylabel('Magnitude (dB)')
+    axes[0].set_title(f'{title} - Frequency Response')
+    axes[0].set_xscale('log')
+    axes[0].set_xlim(20, sample_rate / 2)
+    axes[0].grid(True,alpha = 0.3, which='both')
+    axes[0].axhline(-3, color='red', linestyle='--', alpha=0.5, label='-3dB (cutoff)')
+    axes[0].legend()
+    
+    # Phase response
+    angles = np.unwrap(np.angle(h))
+    axes[1].plot(w, np.degrees(angles), linewidth=2, color='green')
+    axes[1].set_ylabel('Phase (degrees)')
+    axes[1].set_xlabel('Frequency (Hz)')
+    axes[1].set_xscale('log')
+    axes[1].set_xlim(20, sample_rate / 2)
+    axes[1].grid(True, alpha=0.3, which='both')
+    
+    return fig
+
+def demonstrate_filter_types():
+    # 다양한 필터 타입 시연
+
+    # Generate test signal : sawtooth with multiple harmonics
+    freq = 110
+    t = np.linspace(0, DURATION, int(SAMPLE_RATE * DURATION), endpoint=False)
+
+    # Band-limited sawtooth (using additive synthesis)
+    test_signal = np.zeros_like(t)
+    nyquist = SAMPLE_RATE / 2
+    max_harmonic = int(nyquist / freq)
+
+    for n in range(1, min(max_harmonic, 100)):
+        amplitude = (2 / np.pi) * ((-1) ** (n+1)) / n
+        test_signal += amplitude * np.sin(2 * np.pi * n * freq * t)
+
+    # Filter parameters
+    cutoff = 880
+    resonance = 2.0 # Moderate Q
+
+    filter_types = ['lowpass', 'highpass', 'bandpass', 'notch']
+
+    fig, axes = plt.subplots(len(filter_types), 2, figsize=(12, 8))
+
+    for idx, ftype in enumerate(filter_types):
+        # Apply filter
+        filtered, b, a = biquad_filter(test_signal, ftype, cutoff, resonance, SAMPLE_RATE)
+
+        # Time domain
+        w, h = signal.freqz(b, a, worN=4000, fs=SAMPLE_RATE)
+        axes[idx, 0].plot(w, 20 * np.log10(np.abs(h) + 1e-10), linewidth=2, color='blue')
+        axes[idx, 0].axvline(cutoff, color='red', linestyle='--', alpha=0.7, label=f'Cutoff: {cutoff}Hz')
+        axes[idx, 0].axhline(-3, color='orange', linestyle='--', alpha=0.5, label='-3dB')
+        axes[idx, 0].set_ylim(-60, 10)
+        axes[idx, 0].set_xscale('log')
+        axes[idx, 0].set_xlim(20, SAMPLE_RATE / 2)
+        axes[idx, 0].set_title(f'{ftype.upper()} - Frequency Response')
+        axes[idx, 0].set_ylabel('Magnitude (dB)')
+        axes[idx, 0].set_xlabel('Frequency (Hz)')
+        axes[idx, 0].legend(fontsize=8)
+        axes[idx, 0].grid(True, alpha=0.3, which='both')
+
+        # Frequency domain
+        N = len(filtered)
+        fft_original = fft(test_signal)
+        fft_filtered = fft(filtered)
+        freqs = fftfreq(N, 1/SAMPLE_RATE)
+        positive_freqs = freqs[:N//2]
+        mag_original = np.abs(fft_original[:N//2]) * 2 / N
+        mag_filtered = np.abs(fft_filtered[:N//2]) * 2 / N
+        
+        axes[idx, 1].plot(positive_freqs, mag_original, linewidth=1, 
+                         color='gray', alpha=0.5, label='Original')
+        axes[idx, 1].plot(positive_freqs, mag_filtered, linewidth=1.5, 
+                         color='blue', label='Filtered')
+        axes[idx, 1].axvline(cutoff, color='red', linestyle='--', 
+                           alpha=0.7, label=f'Cutoff: {cutoff} Hz')
+        axes[idx, 1].set_xlim(0, 3000)
+        axes[idx, 1].set_xlabel('Frequency (Hz)')
+        axes[idx, 1].set_ylabel('Magnitude')
+        axes[idx, 1].set_title(f'{ftype.upper()} - Spectrum')
+        axes[idx, 1].legend()
+        axes[idx, 1].grid(True, alpha=0.3)
+        # axes[idx, 1].set_yscale('log')
+        # 위 set_yscale('log') 때문에 0에 가까운값을 -무한대로 보내버렸었음. 
+        # 근데 스펙트럼에서 신호가 없는 주파수 구간은 거의 0이이여서 log(0) 이 아래로 날라가 버리면 이상하게 떠있는것 처럼 표현됨
+    
+    plt.tight_layout()
+    plt.show()
+
+def resonance_effect():
+    """
+    Resonance (Q factor) 효과 분석
+    
+    High Q:
+    - Sharp peak at cutoff (차단 주파수에 날카로운 피크)
+    - Can self-oscillate (자기 발진 가능)
+    - "Acid" sound (애시드 사운드)
+    """
+    # White noise as test signal (모든 주파수 포함)
+    noise = np.random.randn(int(SAMPLE_RATE * DURATION))
+    
+    cutoff = 1000  # 1 kHz
+    Q_values = [0.5, 1.0, 2.0, 5.0, 10.0, 20.0]
+    
+    fig, axes = plt.subplots(3, 2, figsize=(12, 8))
+    axes = axes.flatten()
+    
+    for idx, Q in enumerate(Q_values):
+        filtered, b, a = biquad_filter(noise, 'lowpass', cutoff, Q, SAMPLE_RATE)
+        
+        # Spectrum
+        N = len(filtered)
+        fft_result = fft(filtered)
+        freqs = fftfreq(N, 1/SAMPLE_RATE)
+        positive_freqs = freqs[:N//2]
+        magnitude = np.abs(fft_result[:N//2]) * 2 / N
+        
+        axes[idx].plot(positive_freqs, magnitude, linewidth=1, color='blue')
+        axes[idx].set_xlim(100, 5000)
+        axes[idx].set_xlabel('Frequency (Hz)')
+        axes[idx].set_ylabel('Magnitude')
+        axes[idx].set_title(f'Resonance Q = {Q}')
+        axes[idx].axvline(cutoff, color='red', linestyle='--', alpha=0.7)
+        axes[idx].grid(True, alpha=0.3)
+        axes[idx].set_xscale('log')
+        
+        # Calculate peak gain
+        peak_idx = np.argmax(magnitude[positive_freqs > 100])
+        peak_freq = positive_freqs[positive_freqs > 100][peak_idx]
+        peak_gain = magnitude[positive_freqs > 100][peak_idx]
+        
+        axes[idx].text(0.6, 0.9, f'Peak: {peak_gain:.3f}\n@ {peak_freq:.0f} Hz',
+                      transform=axes[idx].transAxes, fontsize=9,
+                      bbox=dict(boxstyle='round', facecolor='yellow', alpha=0.5))
+    
+    plt.tight_layout()
+    plt.show()
+
+def state_variable_filter(signal_input, cutoff_freq, resonance, sample_rate):
+    """
+    State Variable Filter (SVF) (상태 변수 필터)
+        => 필터 내부 상태(state) 를 계속 업데이트 함
+        - svf : 아날로그 integrator(적분) 회로 기반
+
+    Biquad : 하나의 수식 -> b 계수를 바꾸면 LP/HP/BP/Notch 형태로 필터타입 바뀜
+    SVF    : 하나의 구조 -> LP, HP, BP 세개가 동시에 나옴
+        - lowpass = 0
+        - bandpass = 0 
+            : 이 두 변수가 SVF의 메모리! -> 현재 필터의 상태를 기억함 (매 샘플마다 이 값들이 업데이트 되면서 필터가 작동함)
+    
+    
+    Architecture:
+    - Produces LP, BP, HP outputs simultaneously (동시에 3개 출력)
+    - Uses 2 integrators (2개 적분기 사용)
+    - Better for modulation (변조에 더 좋음)
+    
+    Topology (위상 구조):
+    Input → [+] → BP integrator → LP integrator → LP out
+              ↑                         ↓
+              └─────── feedback ────────┘
+    
+    Advantages:
+    - Smooth parameter changes (부드러운 파라미터 변화)
+    - Stable at high resonance (높은 공명에서도 안정적)
+    - Multiple outputs (다중 출력)
+    """
+
+    # Calculate coefficients
+    f = 2 * np.sin(np.pi * (cutoff_freq / sample_rate))
+        # w = 2pi * (fc/fs) = radian 표현 방식
+    q = 1 / resonance
+        # 레조넌스가 커지면 q 작아짐 
+        # 레조넌스가 작아지면 q 커짐
+
+    # Initialize state variables (상태 변수 초기화)
+    lowpass = 0
+    bandpass = 0 
+
+    lp_out = np.zeros_like(signal_input)
+    bp_out = np.zeros_like(signal_input)
+    hp_out = np.zeros_like(signal_input)
+
+
+
+
+demonstrate_filter_types()
+resonance_effect()
