@@ -94,6 +94,28 @@ def biquad_filter(signal_input, filter_type, cutoff_freq, resonance, sample_rate
         # Q가 커지면 alpha가 작아짐 -> 필터 폭이 좁아짐
         # alpha 는 절반짜리 한쪽을 나타내는 값이기때문에 2 * Q 를 처리함
 
+    """ Self Oscillation
+
+여기서 Q 값이 매우 높으면 alpha 값이 줄어들기 때문에 
+        => y[n] = ... - a1·y[n-1] - a2·y[n-2]
+        이 수식과 밑 lowpass filter 의 a0, a1, a2 의 계수가 각 
+        a0 = 1 + alpha = 걍 1 (alpha 작음)
+        a1 = 
+        a2 = 1 - alpha = 거의 1 (alpha 작음) 
+        되어서 거의 2샘플전 출력을 다시 그대로 더하는 뜻이 됨 -> 에너지가 빠져나가지 않고 계속 순환! 
+        => self oscillation 
+
+        Q가 낮다 => 공기 저항이 크다 : 빨리 멈춤
+        Q가 높다 => 공기 저항이 없다 : 오래 울림 
+        Q가 무한대 => 마찰이 아예 없음 : 자기 발진
+
+** 아날로그에서는 열노이즈, 전원 노이즈가 존재하기 때문에 그걸 씨앗으로 feedback이 시작되어 발진 
+    (모든 전자부품은 온도가 있으면 전자가 무작위로 진동 -> 저항, 트랜지스터, 전원 노이즈 등)
+
+"""
+       
+
+
     # Calculate coefficients based on filter type (필터종류에 따라서 b, a 계수를 다르게 셋팅)
     # a0, a1, a2 는 모두 동일함 -> LP, HP, BP, Notch 는 오직 b의 계수만 바꾸는 것
     # : a계수는 feedback 부분이기 때문에 항상 동일
@@ -339,25 +361,286 @@ def state_variable_filter(signal_input, cutoff_freq, resonance, sample_rate):
     - Smooth parameter changes (부드러운 파라미터 변화)
     - Stable at high resonance (높은 공명에서도 안정적)
     - Multiple outputs (다중 출력)
+
+    svf 는 매 샘플마다 :
+        새 상태 = 현재 상태 + (f * 변화량) -> 이렇게 작동함
+
+        f = 한 샘플마다 얼마나 전진하냐
     """
 
     # Calculate coefficients
     f = 2 * np.sin(np.pi * (cutoff_freq / sample_rate))
         # w = 2pi * (fc/fs) = radian 표현 방식
+        # 한 샘플마다 상태(state)를 얼마나 이동시킬까
+        # f 가 크면 한번에 많이 이동 -> 상태가 빠르게 회전 (높은 cutoff freq)
+        # cut off freq 담당
     q = 1 / resonance
         # 레조넌스가 커지면 q 작아짐 
         # 레조넌스가 작아지면 q 커짐
+        # q : 얼마나 오래 울릴까 
+        # resonance 담당
 
     # Initialize state variables (상태 변수 초기화)
     lowpass = 0
     bandpass = 0 
+        # 위와 같은 내부 상태가 매 샘플마다 조금씩 업데이트 됨
 
     lp_out = np.zeros_like(signal_input)
     bp_out = np.zeros_like(signal_input)
     hp_out = np.zeros_like(signal_input)
 
+    for i in range(len(signal_input)):
+        # high-pass = input - lowpass - Q*bandpass
+        highpass = signal_input[i] - lowpass - q * bandpass
+
+        # band-pass integrator (적분기)
+        bandpass = bandpass + f * highpass
+
+        # low-pass integrator 
+        lowpass = lowpass + f * bandpass 
+
+        # store outputs
+        lp_out[i] = lowpass
+        bp_out[i] = bandpass
+        hp_out[i] = highpass 
+
+    return lp_out, bp_out, hp_out
+
+def compare_biquad_svf():
+    """
+    Biquad vs SVF 비교
+    """
+    # Test signal
+    freq = 220
+    t = np.linspace(0, DURATION, int(SAMPLE_RATE * DURATION), endpoint=False)
+    
+    test_signal = np.zeros_like(t)
+    nyquist = SAMPLE_RATE / 2
+    max_harmonic = int(nyquist / freq)
+    
+    for n in range(1, min(max_harmonic, 80)):
+        amplitude = 1 / n
+        test_signal += amplitude * np.sin(2 * np.pi * n * freq * t)
+    
+    cutoff = 1000
+    resonance = 5.0
+    
+    # Biquad
+    biquad_lp, _, _ = biquad_filter(test_signal, 'lowpass', cutoff, resonance, SAMPLE_RATE)
+    
+    # SVF
+    svf_lp, svf_bp, svf_hp = state_variable_filter(test_signal, cutoff, resonance, SAMPLE_RATE)
+    
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+    
+    # Time domain comparison
+    plot_samples = int(0.02 * SAMPLE_RATE)
+    t_plot = t[:plot_samples] * 1000
+    
+    axes[0, 0].plot(t_plot, biquad_lp[:plot_samples], linewidth=1.5, color='blue', label='Biquad LP')
+    axes[0, 0].plot(t_plot, svf_lp[:plot_samples], linewidth=1, color='red', 
+                   linestyle='--', alpha=0.7, label='SVF LP')
+    axes[0, 0].set_ylabel('Amplitude')
+    axes[0, 0].set_title('Lowpass Output Comparison')
+    axes[0, 0].legend()
+    axes[0, 0].grid(True, alpha=0.3)
+    
+    # SVF multiple outputs
+    axes[0, 1].plot(t_plot, svf_lp[:plot_samples], linewidth=1.5, color='blue', label='LP', alpha=0.7)
+    axes[0, 1].plot(t_plot, svf_bp[:plot_samples], linewidth=1.5, color='green', label='BP', alpha=0.7)
+    axes[0, 1].plot(t_plot, svf_hp[:plot_samples], linewidth=1.5, color='red', label='HP', alpha=0.7)
+    axes[0, 1].set_ylabel('Amplitude')
+    axes[0, 1].set_title('SVF Simultaneous Outputs')
+    axes[0, 1].legend()
+    axes[0, 1].grid(True, alpha=0.3)
+    
+    # Spectra
+    N = len(test_signal)
+    freqs = fftfreq(N, 1/SAMPLE_RATE)
+    positive_freqs = freqs[:N//2]
+    
+    fft_biquad = fft(biquad_lp)
+    fft_svf_lp = fft(svf_lp)
+    fft_svf_bp = fft(svf_bp)
+    fft_svf_hp = fft(svf_hp)
+    
+    mag_biquad = np.abs(fft_biquad[:N//2]) * 2 / N
+    mag_svf_lp = np.abs(fft_svf_lp[:N//2]) * 2 / N
+    mag_svf_bp = np.abs(fft_svf_bp[:N//2]) * 2 / N
+    mag_svf_hp = np.abs(fft_svf_hp[:N//2]) * 2 / N
+    
+    axes[1, 0].plot(positive_freqs, mag_biquad, linewidth=1, color='blue', label='Biquad LP')
+    axes[1, 0].plot(positive_freqs, mag_svf_lp, linewidth=1, color='red', 
+                   linestyle='--', label='SVF LP')
+    axes[1, 0].set_xlim(100, 5000)
+    axes[1, 0].set_xlabel('Frequency (Hz)')
+    axes[1, 0].set_ylabel('Magnitude')
+    axes[1, 0].set_title('Lowpass Spectrum Comparison')
+    axes[1, 0].axvline(cutoff, color='black', linestyle=':', alpha=0.5)
+    axes[1, 0].legend()
+    axes[1, 0].grid(True, alpha=0.3)
+    axes[1, 0].set_xscale('log')
+    axes[1, 0].set_yscale('log')
+    
+    axes[1, 1].plot(positive_freqs, mag_svf_lp, linewidth=1, color='blue', label='LP')
+    axes[1, 1].plot(positive_freqs, mag_svf_bp, linewidth=1, color='green', label='BP')
+    axes[1, 1].plot(positive_freqs, mag_svf_hp, linewidth=1, color='red', label='HP')
+    axes[1, 1].set_xlim(100, 5000)
+    axes[1, 1].set_xlabel('Frequency (Hz)')
+    axes[1, 1].set_ylabel('Magnitude')
+    axes[1, 1].set_title('SVF All Outputs')
+    axes[1, 1].axvline(cutoff, color='black', linestyle=':', alpha=0.5)
+    axes[1, 1].legend()
+    axes[1, 1].grid(True, alpha=0.3)
+    axes[1, 1].set_xscale('log')
+    axes[1, 1].set_yscale('log')
+    
+    plt.tight_layout()
+    plt.show()
+
+def filter_sweep():
+    """
+    Filter sweep (필터 스윕)
+    
+    Classic technique:
+    - Sweep cutoff frequency over time (시간에 따라 차단 주파수 변화)
+    - Creates "wah" effect (와우 효과)
+    - Used in: disco, house, techno
+    """
+    #Rich harmonic source(sawtooth)
+    freq = 55  #Low note for more harmonics
+    t = np.linspace(0, 4.0, int(SAMPLE_RATE*4.0), endpoint=False)
+
+    test_signal = np.zeros_like(t)
+    nyquist = SAMPLE_RATE / 2
+    max_harmonic = int(nyquist / freq)
+
+    for n in range(1, min(max_harmonic, 200)):
+        amplitude = 1 / n
+        test_signal += amplitude * np.sin(2 * np.pi * n * freq * t)
+
+    # sweep cutoff from 200 Hz to 4000Hz and back 
+    sweep_period = 4.0
+    cutoff_curve = 200 + 3800 * (0.5 + 0.5 * np.sin(2 * np.pi * t / sweep_period))
+
+    # Apply time-varying filter
+    resonance = 3.0
+    filtered = np.zeros_like(test_signal)
+
+    # Process in small chunks (작은 청크로 처리)
+    chunk_size = 512
+    num_chunks = len(test_signal) // chunk_size
+    
+    for i in range(num_chunks):
+        start = i * chunk_size
+        end = start + chunk_size
+        
+        # Use average cutoff for this chunk
+        chunk_cutoff = np.mean(cutoff_curve[start:end])
+        
+        chunk_filtered, _, _ = biquad_filter(test_signal[start:end], 'lowpass', 
+                                            chunk_cutoff, resonance, SAMPLE_RATE)
+        filtered[start:end] = chunk_filtered
+    
+    # Spectrogram
+    from scipy import signal as sp_signal
+    f, t_spec, Sxx = sp_signal.spectrogram(filtered, SAMPLE_RATE, 
+                                           nperseg=2048, noverlap=1536)
+    
+    fig, axes = plt.subplots(3, 1, figsize=(12, 8))
+    
+    # Cutoff frequency curve
+    axes[0].plot(t, cutoff_curve, linewidth=2, color='blue')
+    axes[0].set_ylabel('Cutoff Frequency (Hz)')
+    axes[0].set_title('Filter Sweep: Cutoff Modulation')
+    axes[0].grid(True, alpha=0.3)
+    
+    # Waveform
+    axes[1].plot(t, filtered, linewidth=0.5, color='purple')
+    axes[1].set_ylabel('Amplitude')
+    axes[1].set_xlabel('Time (s)')
+    axes[1].set_title('Filtered Waveform')
+    axes[1].grid(True, alpha=0.3)
+    axes[1].set_xlim(0, 4)
+    
+    # Spectrogram
+    im = axes[2].pcolormesh(t_spec, f, 10 * np.log10(Sxx + 1e-10), 
+                           shading='gouraud', cmap='magma')
+    axes[2].plot(t, cutoff_curve, 'w--', linewidth=2, alpha=0.7, label='Cutoff')
+    axes[2].set_ylabel('Frequency (Hz)')
+    axes[2].set_xlabel('Time (s)')
+    axes[2].set_title('Spectrogram: Filter Sweep Effect')
+    axes[2].set_ylim(0, 5000)
+    axes[2].legend(loc='upper right')
+    plt.colorbar(im, ax=axes[2], label='Power (dB)')
+    
+    plt.tight_layout()  
+    plt.show()
+
+def self_oscillation():
+    """
+    Self-oscillation (자기 발진)
+    
+    When Q → ∞:
+    - Filter becomes oscillator (필터가 발진기가 됨)
+    - Resonant frequency rings out (공명 주파수가 울림)
+    - Used creatively in synthesis (신시사이즈에서 창의적으로 사용)
+    """
+
+    # Very quiet input(impulse)
+    impulse = np.zeros(int(SAMPLE_RATE*2))
+    impulse[1000] = 1.0 #single impulse 
+
+        #디지털에서는 아날로그 장치에서의 열노이즈나 전원 노이즈 같은 씨앗이 없으므로 impulse 하나를 매우 짧게 입력함!
+
+    cutoff = 440
+    Q_values = [1.0, 5.0, 10.0, 50.0, 100.0]
+
+    fig, axes = plt.subplots(len(Q_values), 2, figsize=(12, 8))
+
+    for idx, Q in enumerate(Q_values):
+        filtered, b, a = biquad_filter(impulse, 'lowpass', cutoff, Q, SAMPLE_RATE)
+
+        # Time domain
+        t = np.arange(len(filtered)) / SAMPLE_RATE
+        plot_start = 900
+        plot_end = plot_start + 2000
+        
+        axes[idx, 0].plot(t[plot_start:plot_end] * 1000, filtered[plot_start:plot_end], 
+                         linewidth=1.5, color='blue')
+        axes[idx, 0].set_ylabel('Amplitude')
+        axes[idx, 0].set_title(f'Q = {Q} - Impulse Response')
+        axes[idx, 0].grid(True, alpha=0.3)
+        
+        if Q >= 10:
+            axes[idx, 0].text(0.6, 0.8, 'Self-oscillating!\n(filter rings at cutoff)',
+                            transform=axes[idx, 0].transAxes, fontsize=9,
+                            bbox=dict(boxstyle='round', facecolor='yellow', alpha=0.6))
+        
+        # Spectrum
+        N = len(filtered)
+        fft_result = fft(filtered)
+        freqs = fftfreq(N, 1/SAMPLE_RATE)
+        positive_freqs = freqs[:N//2]
+        magnitude = np.abs(fft_result[:N//2]) * 2 / N
+        
+        axes[idx, 1].plot(positive_freqs, magnitude, linewidth=1, color='blue')
+        axes[idx, 1].axvline(cutoff, color='red', linestyle='--', alpha=0.7)
+        axes[idx, 1].set_xlim(100, 2000)
+        axes[idx, 1].set_xlabel('Frequency (Hz)')
+        axes[idx, 1].set_ylabel('Magnitude')
+        axes[idx, 1].set_title(f'Q = {Q} - Spectrum')
+        axes[idx, 1].grid(True, alpha=0.3)
+        # axes[idx, 1].set_yscale('log')
+    
+    axes[-1, 0].set_xlabel('Time (ms)')
+    
+    plt.tight_layout()
+    plt.show()
 
 
-
-demonstrate_filter_types()
-resonance_effect()
+# demonstrate_filter_types()
+# resonance_effect()
+# compare_biquad_svf()
+# filter_sweep()
+self_oscillation()
