@@ -392,6 +392,9 @@ def state_variable_filter(signal_input, cutoff_freq, resonance, sample_rate):
     for i in range(len(signal_input)):
         # high-pass = input - lowpass - Q*bandpass
         highpass = signal_input[i] - lowpass - q * bandpass
+            # q가 작아지면 (resonance가 커지면) q*bandpass 가 거의 0이 됨 => bandpass 를 빼는 양이 줄어들게 된다
+            # => 그러면 에너지가 빠져나가지 않고 루프 안에서 계속 순환하다가 발진! 
+            # self oscillation (bi-quad 보다 발진이 더 부드럽게 시작됨)
 
         # band-pass integrator (적분기)
         bandpass = bandpass + f * highpass
@@ -644,3 +647,54 @@ def self_oscillation():
 # compare_biquad_svf()
 # filter_sweep()
 self_oscillation()
+
+
+""" Svf 와 moog Ladder 
+
+    -biquad , svf, moog ladder 모두 다 self oscillation 가능
+
+1) SVF 
+  : HP → (적분) → BP → (적분) → LP
+  => 적분 2번이라서 2차 필터
+
+  +SVF는 feedback 이 내부에서 바로 돌아옴
+    - HP = x - q*BP - LP  
+    -> 바로 자기 자신을 참조
+
+
+2) Ladder 
+  : 입력 → [적분] → [적분] → [적분] → [적분] → 출력
+  => 적분 4번이라서 4차 필터
+    (아날로그에서는 이 적분단계가 트랜지스터 + 커패시터 -> 무그는 이게 4개 직렬 연결된 것)
+
+  +입력 → [1] → [2] → [3] → [4] → 출력
+  ↑________________________________↓
+              feedback
+
+    -> Ladder 는 feedback 이 맨 끝 출력에서 맨 앞으로 돌아옴! 
+       (4단계를 거쳐서 돌아오기 때문에 위상이 180도 뒤집혀서 돌아옴)
+
+
+**아날로그 회로 이론**
+       ↓
+   Ladder 필터 (Moog, 1960년대)
+   "트랜지스터로 적분을 4번"
+       ↓
+   SVF (1970년대)
+   "Ladder를 단순화 + 세 출력 동시에"
+       ↓
+   Biquad (디지털 시대)
+   "SVF를 수식으로 추상화"
+
+**Self oscillation 가능여부**
+
+    - feedback 이 있냐      -> FIR 필터는 원천 불가 (feedback 없음)
+    - 에너지가 클리핑 되어있냐  -> 클리핑 되면 불가 (wasp filter 같은게 그럼)
+    - 감쇠를 막아놨냐         -> 설계로 막으면 불가 
+
+**Wasp -> CMOS 로직 칩으로 만든 필터
+
+CMOS 칩 특성상 출력이 0 아니면 1로 클리핑돼버려. 아날로그처럼 부드럽게 증폭이 안 되고 바로 잘려나가거든.
+그래서 Q를 아무리 올려도 에너지가 쌓이기 전에 파형이 잘려버려서 발진까지 못 가는 거야.
+
+"""
