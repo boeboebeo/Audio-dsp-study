@@ -33,6 +33,8 @@ def biquad_filter(signal_input, filter_type, cutoff_freq, resonance, sample_rate
         z = e^(jw) 를 대입하면 (w=각주파수) -> 각 주파수에서 필터가 신호를 얼마나 증폭/감쇠하는지 바로 계산 가능함
         H(z) → z = e^(jω) 대입 → H(e^(jω)) = 주파수 응답
 
+        => H(z) 와 Y(n) 은 같은 존재임 (아이패드에 정리해둠)
+
 
 
     Difference equation (차분방정식)
@@ -371,9 +373,9 @@ def state_variable_filter(signal_input, cutoff_freq, resonance, sample_rate):
     # Calculate coefficients
     f = 2 * np.sin(np.pi * (cutoff_freq / sample_rate))
         # w = 2pi * (fc/fs) = radian 표현 방식
-        # 한 샘플마다 상태(state)를 얼마나 이동시킬까
-        # f 가 크면 한번에 많이 이동 -> 상태가 빠르게 회전 (높은 cutoff freq)
-        # cut off freq 담당
+        # 컷오프를 높이면 f 가 커짐 => f가 커지면 고역대가 큰 진폭으로 출력 배열에 저장될 수 있음
+
+
     q = 1 / resonance
         # 레조넌스가 커지면 q 작아짐 
         # 레조넌스가 작아지면 q 커짐
@@ -385,6 +387,7 @@ def state_variable_filter(signal_input, cutoff_freq, resonance, sample_rate):
     bandpass = 0 
         # 위와 같은 내부 상태가 매 샘플마다 조금씩 업데이트 됨
 
+    #입력이랑 똑같은 길이의 0배열
     lp_out = np.zeros_like(signal_input)
     bp_out = np.zeros_like(signal_input)
     hp_out = np.zeros_like(signal_input)
@@ -406,6 +409,22 @@ def state_variable_filter(signal_input, cutoff_freq, resonance, sample_rate):
         lp_out[i] = lowpass
         bp_out[i] = bandpass
         hp_out[i] = highpass 
+            # i 번째 샘플자리에 계산 결과를 넣음
+
+    """각각 저장되고 있는 샘플의 결과
+    lp_out = [샘플0의 LP값, 샘플1의 LP값, 샘플2의 LP값, ...]
+    bp_out = [샘플0의 BP값, 샘플1의 BP값, 샘플2의 BP값, ...]
+    hp_out = [샘플0의 HP값, 샘플1의 HP값, 샘플2의 HP값, ...]
+
+    **디지털 오디오에서의 거의 모든 처리가 결국 아래의 구조**
+
+        입력 샘플 배열  →  뭔가 계산  →  출력 샘플 배열
+    [0.5, 0.6, 0.7, ...]      [0.125, 0.306, 0.495, ...]    
+
+        => 어떤 입력 샘플 배열에 무슨 계산 처리를 해서 그걸 출력 샘플배열로 저장함
+        *샘플레이트가 44100번이라면 그걸 1초동안 44100번 반복하는 것임
+            => 그 계산이 실시간으로 일어나야 하므로, 44100번의 계산이 1초안에 끝나야함
+    """
 
     return lp_out, bp_out, hp_out
 
