@@ -83,6 +83,8 @@ def biquad_filter(signal_input, filter_type, cutoff_freq, resonance, sample_rate
         # 디지털 필터에서는 Hz 를 직접 모르고, 1샘플 안에서 몇 바퀴 도는가로 주파수를 이해함
         # ex. 2pi * 1000 / 44100 = 약 0.1425 라디안 => 한 샘플마다 원을 0.1425 라디안씩 돌음
         # 샘플레이트가 높을수록 omega 도 작아짐 (같은 주파수도 샘플이 많으면 한 샘플당 조금씩만 전진)
+        # RBJ Audio EQ Cookbook 계수 공식
+
     sin_omega = np.sin(omega)
         # 그 각도의 세로위치
     cos_omega = np.cos(omega)
@@ -95,6 +97,9 @@ def biquad_filter(signal_input, filter_type, cutoff_freq, resonance, sample_rate
         # 얼마나 넓은 주파수 범위에 필터가 작용하는지를 결정해야 함(필터가 작용하는 주파수 범위의 너비)
         # Q가 커지면 alpha가 작아짐 -> 필터 폭이 좁아짐
         # alpha 는 절반짜리 한쪽을 나타내는 값이기때문에 2 * Q 를 처리함
+        # 주파수 위치에 따라서 필터 폭을 보정
+
+        # 후... 이거는 pole/zero 까지 간다면 더 이해가 잘 될듯!!!! 그때 한번 다시 와 보자
 
     """ Self Oscillation
 
@@ -175,13 +180,21 @@ def biquad_filter(signal_input, filter_type, cutoff_freq, resonance, sample_rate
     # 컴퓨터가 실제로 계산하려면 y[n] 혼자서 왼쪽에 있어야 하므로 양변을 a0 로 나눔
     # => y[n] = (b0/a0)·x[n] + (b1/a0)·x[n-1] + (b2/a0)·x[n-2]
     #    - (a1/a0)·y[n-1] - (a2/a0)·y[n-2]
-        # 그걸 한줄씩 해ㅐ놓은게, b = , a =  이라는 배열
+        # 그걸 한줄씩 해놓은게, b = , a =  이라는 배열
 
 
     # Apply filter using difference equation
     filtered = signal.lfilter(b, a, signal_input)
         # lfilter : 정규화된 b, a 계수로 차분방정식을 신호 전체에 샘플 하나하나 적용하게 해줌
         # 직접 하면 for 문 돌려야 하는데 lfilter가 signal_input 의 모든 샘플에 대해 자동으로 반복해주게 함
+    """ 
+    아래와 같게 for 문 돌려서 한 샘플 한 샘플의 magnitude 계산해야 하는데, 
+    signal.lfilter가 그 역할 대신함
+
+    for n in range(len(signal)):
+    y[n] = b0*x[n] + b1*x[n-1] + b2*x[n-2] - a1*y[n-1] - a2*y[n-2]
+    
+    """
 
     return filtered, b, a
 
