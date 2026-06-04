@@ -452,5 +452,24 @@ def demo_synthesizer_presets():
     # plt.show()
 
 
+def demo_melody():
+    """
+    간단한 멜로디 생성
+    
+    Note: C major scale (C 메이저 스케일)
+    """
+    # Note frequencies (노트 주파수)
+    notes = {
+        'C4': 261.63,
+        'D4': 293.66,
+        'E4': 329.63,
+        'F4': 349.23,
+        'G4': 392.00,
+        'A4': 440.00,
+        'B4': 493.88,
+        'C5': 523.25
+    }
+
+
 
 demo_synthesizer_presets()
