@@ -478,6 +478,21 @@ def demo_melody():
         ('G4', 1.0), ('C4', 1.0)
     ]
 
+    # Create synth (신스 생성)
+    synth = Synthesizer()
+    synth.osc1_waveform = 'sawtooth'
+    synth.osc2_waveform = 'square'
+    synth.osc2_detune = 5
+    synth.filter_cutoff = 2000
+    synth.filter_resonance = 2.0
+    synth.filter_envelope_amount = 0.6
+    synth.env_attack = 0.01
+    synth.env_decay = 0.15
+    synth.env_sustain = 0.4
+    synth.env_release = 0.2
+    
+    # Generate melody (멜로디 생성)
+    melody_audio = []
 
 
 demo_synthesizer_presets()
