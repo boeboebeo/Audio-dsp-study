@@ -494,5 +494,10 @@ def demo_melody():
     # Generate melody (멜로디 생성)
     melody_audio = []
 
+    for note_name, note_duration in melody:
+    freq = notes[note_name]
+    sound, _ = synth.generate_note(freq, note_duration, gate_time=note_duration * 0.9)
+    melody_audio.append(sound)
+
 
 demo_synthesizer_presets()
