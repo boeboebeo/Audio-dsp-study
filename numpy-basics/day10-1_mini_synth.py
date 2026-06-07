@@ -499,5 +499,8 @@ def demo_melody():
     sound, _ = synth.generate_note(freq, note_duration, gate_time=note_duration * 0.9)
     melody_audio.append(sound)
 
+    # Concatenate (연결)
+    full_melody = np.concatenate(melody_audio)
+
 
 demo_synthesizer_presets()
