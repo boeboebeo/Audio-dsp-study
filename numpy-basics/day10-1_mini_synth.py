@@ -508,6 +508,13 @@ def demo_melody():
     fig, axes = plt.subplots(2, 1, figsize=(14, 8))
     
     t_full = np.arange(len(full_melody)) / SAMPLE_RATE
+
+    # Waveform
+    axes[0].plot(t_full, full_melody, linewidth=0.5, color='blue')
+    axes[0].set_ylabel('Amplitude')
+    axes[0].set_title('Generated Melody - Waveform')
+    axes[0].grid(True, alpha=0.3)
+    
     
 
 
