@@ -515,6 +515,10 @@ def demo_melody():
     axes[0].set_title('Generated Melody - Waveform')
     axes[0].grid(True, alpha=0.3)
     
+    # Spectrogram
+    from scipy import signal as sp_signal
+    f, t_spec, Sxx = sp_signal.spectrogram(full_melody, SAMPLE_RATE,
+                                           nperseg=2048, noverlap=1536)
     
 
 
