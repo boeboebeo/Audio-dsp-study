@@ -527,6 +527,12 @@ def demo_melody():
     axes[1].set_title('Generated Melody - Spectrogram')
     axes[1].set_ylim(0, 2000)
     plt.colorbar(im, ax=axes[1], label='Power (dB)')
+
+    plt.tight_layout()
+    plt.show()
+
+    
+
     
 
 
