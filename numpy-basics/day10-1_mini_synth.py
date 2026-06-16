@@ -531,7 +531,22 @@ def demo_melody():
     plt.tight_layout()
     plt.show()
 
-    
+def complete_synthesis_pipeline():
+    """
+    전체 synthesis 파이프라인 시각화
+    """
+    synth = Synthesizer()
+    synth.osc1_waveform = 'sawtooth'
+    synth.osc2_waveform = 'sawtooth'
+    synth.osc2_detune = 7
+    synth.filter_cutoff = 1200
+    synth.filter_resonance = 4.0
+    synth.filter_envelope_amount = 0.7
+    synth.env_attack = 0.02
+    synth.env_decay = 0.3
+    synth.env_sustain = 0.4
+    synth.env_release = 0.5
+
 
     
 
