@@ -326,6 +326,23 @@ class Synthesizer:
                 env_value = np.mean(envelope[start:end])
                     # 📍왜 평균내지? 엔벨롭 magnitude 를 512 개의 지점내에서 평균내는 이유는?
                     # 그냥 청크묶음의 엔벨롭의 평균값을 걍 대표값으로 사용하기 위함 
+                    # 미리 전체를 다 계산해서 메모리에 저장! -> 한번에 재생 (이건 실시간 처리가 아니라서 그럼 -> 오프라인 처리라서 한번에 저장해서 재생하는 방식)
+                    # 실시간방식(sounddevice)에서는 256샘플짜리 작은 버퍼를 계속 재사용 
+                """ 실시간 방식에서는 
+
+                1) wav 에서 256개의 샘플이 버퍼에 쌓임
+                2) 256개 한번에 필터 계산
+                3) 다음 256개 쌓임 -> 또 계산 : latency의 원인임 
+
+                latency 계산하는 법 : 256 / sample rate 
+
+                ex. sr = 44100, 256개의 샘플 한번에 계산한다면
+
+                256 / 44100  = 약 5.8ms 
+
+                **실시간에서는 "chunk 크기 = 버퍼 사이즈" 
+
+                """
                 modulated_cutoff = self.filter_cutoff * (1 + self.filter_envelope_amount * env_value * 4)
                     # filter env_amount = 0 to 1 
                     # 1 + : 일 더하는 이유는 원래 컷오프에 0을 곱해버리면 원래 있던 컷오프도 없어지니까
