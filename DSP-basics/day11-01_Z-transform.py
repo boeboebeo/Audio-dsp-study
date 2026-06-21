@@ -21,3 +21,9 @@ from scipy.fft import fft, fftfreq
 
 SAMPLE_RATE = 44100
 
+def z_transform_basics():
+    """
+    Z-Transform: Bridge between time-domain and frequency-domain
+    (시간 영역과 주파수 영역을 연결하는 다리)
+    
+    """
