@@ -25,5 +25,8 @@ def z_transform_basics():
     """
     Z-Transform: Bridge between time-domain and frequency-domain
     (시간 영역과 주파수 영역을 연결하는 다리)
-    
+
+    Mathematical Definition (수학적 정의):
+    X(z) = Σ x[n] * z^(-n) for n = -∞ to +∞
+
     """
