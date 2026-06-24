@@ -31,5 +31,8 @@ def z_transform_basics():
 
     Where z is a complex variable: z = e^(jω) (j = imaginary unit)
 
+    Intuition (직관):
+    - Laplace transform (라플라스 변환): continuous-time (연속시간)
+    - Z-transform: discrete-time (이산시간)
 
     """
