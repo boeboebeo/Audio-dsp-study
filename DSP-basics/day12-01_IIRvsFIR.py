@@ -370,7 +370,13 @@ def understand_linear_phase():
 
     """
 
-    
+    # linear phase 와 resonance 는 양립 불가능 
+    # 근데 FIR linear-phase EQ 로도 bell 의 모양은 만들 수 있음
+    # but, 살아있는 발진 및 self oscillation 을 불가
+    # ex. Pro-Q 
+    # 에서는 bell '모양'은 linear phase FIR 로 만들 수 있다함
+    # but, 좁은 bell(=high-Q) 에서는 pre-ringing 발생 가능 : 원래 트랜지언트 직전에 거꾸로 재생되는것 같은느낌
+    # 레이턴시 심함 -> 실시간 연주 불가능한 정도
 
 
 

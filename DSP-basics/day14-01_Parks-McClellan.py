@@ -70,6 +70,7 @@ def understand_equiripple():
         => 통과 대역이득이 정확히 1 이 아니라  1 ± ε(엡실론=>passband ripple 의 크기)
         => 차단 대역이 정확히 0이 아니라 ± δ 사이에서 출렁임= (델타 = stopband ripple 의 크기)
         : 모든 리플이 똑같은 높이로 균등함 
+        : 아래의 weight 는 엡실론과 델타 중 어느 쪽 ripple 을 더 누를지 결정함
     
     **why is this 'optimal'?
         - Think of error budget : 100dB
@@ -238,6 +239,120 @@ def compare_window_vs_parks_mcclellan():
 
     plt.tight_layout()
     plt.show()
-        
 
-compare_window_vs_parks_mcclellan()
+def demonstrate_equiripple_graphically():
+    """등리플 특성(equiripple property"""
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # Design filter
+    bands = [0, 0.1134, 0.1247, 0.5]
+    desired = [1, 0] # pass band, stop band
+    weights = [1, 1] # Equal weight
+
+    h = signal.remez(51, bands, desired, weight=weights)
+        # optimal filter (FIR) 계수 계산해주는 함수
+        # h = 여기서 필터의 계수 
+
+    w = np.linspace(0, 1, 1000)
+        # w = 0부터 1 까지를 1000개로 나눈 배열
+    w_rad = w * np.pi
+        # w_rad => 0부터 1 까지를 1000개로 나눈 배열을 3.14 곱해서 라디안으로 표현
+
+    _, mag = signal.freqz(h, [1], w_rad)
+        # FIR 은 극점 x -> 분모값은 1로 고정해서 극점이 없게 하고, 분자 계수 집어넣음. 
+        # "worN = 500" 이렇게 넣는건 500개로 알아서 나눠달라는 것
+        # "worN = w_rad" 로 넣어주는건 내가 준 이 주파수들에서 계산해달라고 직접 지정하는것
+    mag_db = 20 * np.log10(np.abs(mag) + 1e-10)
+
+    # Plot 1: show passband ripple
+    ax = axes[0]
+    passband_freq = w[w < 0.227]
+        # bands => remez 스케일 (nyquist = 0.5) 
+        # w = freqz / 일반 정규화 스케일 (nyquist = 1)
+        # remez의 0.1134의 스케일을 w 로 바꾸면 두배해서 약 0.227 나옴
+        # => 이 둘의 스케일이 다르다는점 파악잘하기!
+    passband_mag = mag_db[w < 0.227]
+
+    ax.plot(w[w<0.227], mag_db[w<0.227], linewidth=2.5, color='blue')
+    
+    #Find ripples
+    peaks = signal.find_peaks(passband_mag)[0]
+    valleys = signal.find_peaks(-passband_mag)[0]
+        # 여기 뒤에 [0] 이 붙은 이유는?
+        # find_peaks가 결과를 두개 묶어서 튜플로 돌려주기 때문에, 그 중 첫번째 항만 필요해서 [0] 붙임
+        # [0, 1] => 중에 1자리에 오는건 PEAK 의 부가정보를 담은 딕셔너리 (지금은 안쓰고 있음)
+        # 0 자리에 오는건 peak 의 인덱스 배열
+
+    if len(peaks) > 0:
+        ax.plot(passband_freq[peaks], passband_mag[peaks], 'ro', markersize=8, label='Peaks')
+    if len(valleys) > 0:
+        ax.plot(passband_freq[valleys], passband_mag[valleys], 'go', markersize=8, label='Valleys')
+
+    ax.set_ylabel('Magnitude (dB)')
+    ax.set_title('Passband: EQUAL RIPPLE\n(peaks and valleys same height)')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    ax.text(0.5, 0.1, 'ALL PEAKS equally high\nALL VALLEYS equally low\n=> Equiripple',
+            transform=ax.transAxes, fontsize=9,
+            bbox=dict(boxstyle='round', facecolor='yellow', alpha=0.5))
+    
+    # Plot 2: Full spectrum with annotations
+
+    ax = axes[1]
+    ax.plot(w, mag_db, linewidth=2, color='red')
+        # w 축 그리기에 w의 (0, 1)이 편함
+    ax.axhline(0, color='k', linestyle='-', linewidth=0.5)
+        #bands = [0, 0.1134, 0.1247, 0.5] 의 각 부분 표시
+    ax.axvline(0.2, color='gray', linestyle='--', alpha=0.5, label='Transition')
+        # 0.1134 * 2 <= 여기까지가 stopband
+    ax.axvline(0.25, color='gray', linestyle='--', alpha=0.5)
+        # 0.1247 * 2 <= 여기부터가 passband (그 사이가 transition band)
+    ax.set_ylim(-80, 5)
+    ax.set_xlabel('Normalized Frequency')
+    ax.set_ylabel('Magnitude (dB)')
+    ax.set_title('FUll response: PM filter\n(sharp transition, even ripples)')
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+def understand_how_to_use():
+    """
+
+    step 1: Define specitications
+        -you need to know
+            - passband edge frequency
+            - stopbnad edge frequency
+            - max passband ripple (dB)
+            - min stopband attenuation (dB)
+            - sample rate
+    
+    step 2: Estimate filter order
+        - Rough formula(경험적 공식)
+            - N ≈ (As - 13) / (2.4 * (fs - fp) / sample_rate)
+                - As = stopband attenuation
+                - fs = stopband frequency
+                - fp = passband frequency
+
+        => FIR 필터 설계에서 '탭이 몇개 필요한지' 미리 추정하는 경험식
+        or from scipy.signal import kaiserord 로 
+            transition 폭과 ripple 을 주면 필요한 탭수 + beta 계산 할 수 있음
+
+            if 이 식으로 나온 N (taps 수)를 썼는데, 그걸로 remez/firwin 설계했더니
+                => freqz 로 실제 freq response 확인시 스펙 미달이면 N를 늘려서 재 설계 함
+    
+    step 3: use scipy.signal.remez
+        - signal.remez(numtaps, bands, desired, weight= ..)
+        - bands: [0, fp/Nyquist, fs/Nyquist, 1]
+         => 근데 위에서는 0.5가 최대가 되게끔 했어야 했음
+        - desired: [1, 0] for low-pass
+        - weight: [1, 1] for equal ripple
+            => stopband, passband의 리플 비율
+    
+    """
+
+    
+
+# compare_window_vs_parks_mcclellan()
+demonstrate_equiripple_graphically()
