@@ -6,7 +6,7 @@ from scipy import signal
 # b = np.array([0.2, 0.5, 1.0, 0.5, 0.2])
 # Asymmetric
 b = np.array([0.2, 0.7, 1.0, 0.5, 0.9])
-    # 계수만 바꿔도 
+    # 계수만 바꿔도 Phase 가 linear 가 아니게 됨
 
 w, h = signal.freqz(b, [1], worN=1024)
 
