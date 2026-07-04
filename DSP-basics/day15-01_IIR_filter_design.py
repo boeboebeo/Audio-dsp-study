@@ -180,7 +180,8 @@ RC Low-pass 회로
 
 ↓
 
-⑤ Stability
+⑤ Stability 
+    - 여기까지가 아날로그 필터를 공부한 것
 
 ↓
 
