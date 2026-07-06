@@ -188,16 +188,131 @@ def understand_bilinear_transformation():
     [Frequency warping] 
 
     one issue : bilinear warps frequencies
-    !! 주파수 왜곡이 발생할 수 있음
+    !! 주파수 왜곡이 발생할 수 있음 (주파수가 그대로 가지 않음)
+
+    - Laplace 에서는 주파수가 s = jΩ 에서 움직임 (Ω = 아날로그 각주파수 (rad/sec))
+    - Digital 에서는 주파수가 z = e^(jω) 위에서 움직임 (ω = 디지털 각주파수 (rad/sample))
     
+    이 둘을 Biliear transform 으로 연결하면
+
+        Ω = 2/T * tan(ω/2) 라는 식이 나오는데 이게 Frequency warping 의 원인
+
+        => 선형이었다면 일정하게 대응될텐데
+        => tan() 가 직선이 아니라 곡선이기 때문에 디지털로 변환시 같은 간격으로 변환이 안됨
+        (고주파에서 더 심하게 변형)
+
+        tan() : 90도 부근에서 갑자기 무한대로 치솟음 
+                => 그래서 저주파수에서는 거의 안 변하지만, 높은 주파수에서는 매우 변함
+
+    ** 그래서 엔지니어들은 pre-warping 을 함
+    => 어짜피 Bilinear trnasform 시 휘어짐으로 처음부터 반대로 조금 비틀어서 설계 
+
+        Ω = 2/T * tan(ωc/2)
+
+        => 원하는 디지털 cutoff -> 먼저 아날로그 cutoff 계산 -> 그걸 butterworth 설계에 사용
+        => Bilinear trasform => 원하는 cutoff 제대로 나옴! 
+
+        원하는 디지털 Cutoff
+                │
+                ▼
+        Pre-warping
+        (탄젠트로 보정)
+                │
+                ▼
+        Butterworth 설계(H(s))
+                │
+                ▼
+        Bilinear Transform
+                │
+                ▼
+        H(z)
+                │
+                ▼
+        원하는 Cutoff가 정확하게 나옴
+
+    - 근데 signal.butter() 같은 함수는 내부에서 자동으로 주파수 보정해줌! 
     
-    
+
     
     """
 
+def compare_stability_poles():
+    """
+    show where poles/zeros are for different filter types verify stability
+    [verify : 확인v]
+    """
+
+    # [STABILITY CHECK] Pole locations
+
+    # Design filters
+    fp, fs = 0.2, 0.25  # pass, stop band freq - Normalized
+    Ap, As = 0.5, 60  # pass band ripple, stop band attenuation
+
+    b_butter, a_butter = signal.butter(4, (fp+fs)/2) 
+    b_cheby1, a_cheby1 = signal.cheby1(4, Ap, (fp+fs)/2)
+    b_ellip, a_ellip = signal.ellip(4, Ap, As, (fp+fs)/2)
+
+    # Extract poles
+    _, p_butter, _ = signal.tf2zpk(b_butter, a_butter)
+    _, p_cheby1, _ = signal.tf2zpk(b_cheby1, a_cheby1)
+    _, p_ellip, _ = signal.tf2zpk(b_ellip, a_ellip)
+
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4))
+
+    filters = [
+        ('Butterworth', p_butter, axes[0]),
+        ('Chebyshev I', p_cheby1, axes[1]),
+        ('Elliptic', p_ellip, axes[2]),
+    ]
+
+    for name, poles, ax in filters:
+        # Draw unit circle
+        theta = np.linspace(0, 2*np.pi, 100)
+        ax.plot(np.cos(theta), np.sin(theta), 'k-', linewidth=2, label='Unit circle')
+        ax.fill(np.cos(theta), np.sin(theta), alpha=0.1, color='gray')
+            # x = rcos(theta), y = rsin(theta)
+            # 단위원 자체가 복소평면에서의 |z| = 1 인 복소평면의 점들의 집합임
+            # 복소수는 z = x + iy 이니까 
+            # z = cos(theta) + i sin(theta)
+            # 그러면 오일러 공식에 의해 e^(i*theta) = cos(theta) + i sin(theta)이고
+            # 단위원위의 모든 점은 (cos(theta), sin(theta))로 표현되는 동시에
+            # 복소평면위에서는 (Real, Imag)의 좌표이기도 함
+            # => 좌표자체는 완전히 동일 
+
+        # Plot poles
+        ax.plot(np.real(poles), np.imag(poles), 'rx', markersize=12, markeredgewidth=2.5)
+            # 실수축, 허수축 각각에 pole 체크
+
+        # Check stability
+        all_stable = np.all(np.abs(poles) < 1)
+            #모두 1보다 작은지! (단위원 안에 있는지 체크)
+        
+        ax.axhline(0, color='k', linewidth=0.5)
+        ax.axvline(0, color='k', linewidth=0.5)
+        ax.set_xlim(-1.5, 1.5)
+        ax.set_ylim(-1.5, 1.5)
+        ax.set_aspect('equal')
+        ax.grid(True, alpha=0.3)
+        ax.set_xlabel('Real')
+        ax.set_ylabel('Imaginary')
+
+        status = "STABLE ✓" if all_stable else "UNSTABLE x"
+        ax.set_title(f'{name}\n{status}')
 
 
-design_iir_filters()
+        if all_stable:
+            ax.set_facecolor('#f0f0f0')
+        else:
+            ax.set_facecolor('#ffcccc')
+
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+# design_iir_filters()
+compare_stability_poles()
     
 
 """need to know
