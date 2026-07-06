@@ -30,6 +30,9 @@ This is much easier than designing digital filters from scratch
     - WAY2: Design in analog, convert to digital
     => easy, well-understood theory, clear procedures, standard method
 
+    **대부분의 아날로그 시스템이 미분방정식으로 표현되는데, 그 미분방정식을 디지털로 옮기는것이 가장 자연스러움
+    ex. RC curcuit
+
     **아날로그(s-domain) 필터이론 -> 100년 넘은 전자회로 필터 설계들
             - 원하는 스펙을 정해서(ex. 4th order, LPF, COF 1000Hz) 
               => s-domain에서 그 스펙에 만족하는 극점들을 특정패턴으로 배치 -> H(s)완성
@@ -47,7 +50,11 @@ This is much easier than designing digital filters from scratch
 
 +Bridge : Bilinear transformation 
     - Formula 
-        s = (2/Ts) * (z - 1) / (z + 1)
+        s = (2/Ts) * (1 - z^(-1)) / (1 + z^(-1))
+
+            - 여기서 T = 샘플링 주기 (시간 간격)
+            ex. sample rate = 48000Hz 면 T = 1/48000 s
+            (샘플과 샘플 사이의 실제 시간)
 
         => converts s-plane (analog) to z-plane (digital)
         => Preserves stability (안정성 유지)
@@ -110,6 +117,17 @@ def design_iir_filters():
     b_ellip, a_ellip = signal.ellip(N_ellip, Ap, As, Wn_ellip)
         # 얘는 추가로 Ap, As 둘다 넣음
 
+        # signal.butter(...) 내부 처리과정
+            # 차수, cutoff 를 넣어주면
+            # => 아날로그 butterworth prototype 생성되고
+            # => H(s) 생성. s-plane 에서의 전달함수
+            # => Bilinear transform 을 거쳐서 H(z) 만들어냄
+            # => H(z)
+            # => 분자(b), 분모(a) 계수 계산 후 출력해줌
+
+            # scipy 에서 analog=True 면 변환하지 않고 H(s)자체를 반환함
+
+
     # Visualize
     fig, axes = plt.subplots(2, 2, figsize=(12, 8))
 
@@ -147,6 +165,30 @@ def understand_bilinear_transformation():
     
 
     **Maps s-plane (analog) → z-plane (digital)
+
+    Formula: (2/Ts)( 1-z^(-1) / 1+z^(-1) )
+          => (2/Ts)( z-1 / z+1)   <- 위의 식의 분자 분모에 z 곱한 후, 풀면 이런 식 나옴 
+           
+           **풀이
+            : ( 1-z^(-1) / 1+z^(-1) ) 여기만 
+              z(1-z^(-1) / z(1+z^(-1) 이 나오게 되는데 여기서 
+              z*z^(-1) 은 지수법칙으로 z^(0) = 1 
+              => 따라서 z-1 이렇게 나오게 됨
+        
+        where Ts = 1/sample rate (sampling period)
+
+    - 아날로그 필터 : s-plane 에서의 poles/zeros 를 디자인함
+    - 디지털 필터 : z-plane 에서의 poles/zeros 를 디자인함
+
+    ex. 
+    + Analog pole at s = -1000
+    => use bilinear to find digital pole location
+        => get digital filter coefficients 
+
+    [Frequency warping] 
+
+    one issue : bilinear warps frequencies
+    !! 주파수 왜곡이 발생할 수 있음
     
     
     
@@ -186,6 +228,8 @@ RC Low-pass 회로
 ↓
 
 ⑥ Butterworth Filter
+    - passband 가 최대한 평평 
+    - 아날로그에서 설계한 '이상적인 성능에 가까운 low-pass filter
 
 ↓
 
