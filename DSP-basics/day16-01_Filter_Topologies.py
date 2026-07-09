@@ -336,4 +336,7 @@ ex. 512 샘플씩 버퍼로 주고받음. 필터를 chunk 단위로 반복호출
 
 즉, DF-II를 거꾸로 그리면 TDF-II 가 됨
 
+    feedback -> feedforward 이 순서를
+    feedforward -> feedback 으로 바꿔서 처리함
+
 """
