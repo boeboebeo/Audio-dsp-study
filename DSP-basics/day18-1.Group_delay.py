@@ -172,7 +172,7 @@ def understand_allpass_filters():
 
         but, phase 는 바뀐다.
         크기는 pole 이 +3dB 만들때, zero 는 -3dB 처리하지만
-        시간은 pole 이 조금 늦출때, zero 도 조금 늦춘다.
+        시간은 pole 이 조금 늦출때, zero 도 조금 늦춘다. => 위상은 계속 누적됨
 
     + Magnitude property
         |H(e^jω)| = 1 for ALL frequencies
@@ -258,9 +258,110 @@ def create_allpass_filter():
         
     """
 
+def cascade_allpass_for_arbitrary_phase():
+    # 원하는 위상응답 만들기
+
+    """
+    Single all-pass : Limited phase change
+    (all-pass 하나만으로는 위상을 변화시키는것에 한계가 있다)
+        => 조절할 수 있는건 pole 의 위치(a) 하나 뿐이기 때문
+    Cascade (chain) them : Arbitrary phase response
+        => all pass filter 여러개를 직렬로 연결함
+
+        - Formula
+        : H_total(z) = H1(z) * H2(z) * H3(z) * ...
+
+            => 직렬연결이므로 전달함수는 곱함
+            (DSP 에서 직렬연결은 항상 전달함수의 곱이다.)
+        
+        Each Hi ia all-pass
+            - Magnitudes multiply: 1*1*1* ...= 1
+                => 근데 진폭은 각각 1이기 떄문에 곱하고곱해도 여전히 1나옴
+            - Phase add: φ1 + φ2 + φ3 + ... 
+                => 근데 복소수는 곱하면 위상은 더해짐
+                    e^(jϕ1) * e^(jϕ2) = ej^(ϕ1+ϕ2)
+
+    IIR filter has variable group delay 
+        : 각각 group delay 가 주파수마다 다름
+    => Design all-pass cascade to compensate
+    => Result: all-pass filter 는 group delay 를 원하는 방향으로 조절할 수 있는 도구
+
+    ex. butterworth 의딜레이가 100Hz 는 1 sample delay, 1000Hz 는 5 sample delay 라면
+    => butterworth 뒤에 all pass 를 몇개 붙임 
+     + 100hz +4 sample, 1000Hz 0 sample 이 되도록 만든다
+
+    =>그럼 전체는 100Hz 5 sample, 1000Hz 5 sample 로 동일해짐
+
+    **실제 사용 예시
+        - 라우드스피커 크로스오버: 우퍼와 트위터의 시간정렬
+        - 마이크 배열: 채널 간 시간 맞춤
+        - 통신 시스템: 위상 왜곡 보정
+        - 디지털 이퀄라이저: 크기 유지하면서 위상만 수정
+        - Phaser: 여러개의 all-pass 를 직렬로 연결해서 여러개의 노치를 만듦
+    
+    """
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # Design 3 all-passes 
+    a1, a2, a3 = 0.3, 0.6, 0.8
+
+    # Individual responses
+    w = np.linspace(0, np.pi, 500)
+
+    b1, d1 = np.array([a1, 1]), np.array([1, a1])
+        # 이게 뭘까
+    b2, d2 = np.array([a2, 1]), np.array([1, a2])
+    b3, d3 = np.array([a3, 1]), np.array([1, a3])
+
+    _, h1 = signal.freqz(b1, d1, w)
+    _, h2 = signal.freqz(b2, d2, w)
+    _, h3 = signal.freqz(b3, d3, w)
+
+    h_cascade = h1 * h2 * h3
+
+    # plot 1: Magnitude ( all 1 )
+    ax = axes[0]
+    mag1_db = 20*np.log10(abs(h1) + 1e-10)
+    mag2_db = 20*np.log10(abs(h2) + 1e-10)
+    mag3_db = 20*np.log10(abs(h3) + 1e-10)
+    mag_cascade_db = 20*np.log10(np.abs(h_cascade) + 1e-10)
+
+    ax.plot(w/np.pi, mag1_db, linewidth=2.5, label='AP1', alpha=0.5)
+    ax.plot(w/np.pi, mag2_db, linewidth=1, label='AP2', alpha=0.5)
+    ax.plot(w/np.pi, mag3_db, linewidth=1, label='AP3', alpha=0.5)
+    ax.plot(w/np.pi, mag_cascade_db, linewidth=1, label='Cascade', color='red')
+    ax.set_ylim(-0.5, 0.5)
+    ax.set_ylabel('Magnitude(dB)')
+    ax.set_title('Cascaded All-pass: Magnitude\n(all =1 , always)')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+    # plot 2: Phase (adds together)
+    ax = axes[1]
+    phase1 = np.unwrap(np.angle(h1))
+    phase2 = np.unwrap(np.angle(h2))
+    phase3 = np.unwrap(np.angle(h3))
+    phase_cascade = np.unwrap(np.angle(h_cascade))
+
+    ax.plot(w/np.pi, phase1, linewidth=1, label='AP1', alpha=0.5)
+    ax.plot(w/np.pi, phase2, linewidth=1, label='AP2', alpha=0.5)
+    ax.plot(w/np.pi, phase3, linewidth=1, label='AP3', alpha=0.5)
+    ax.plot(w/np.pi, phase_cascade, linewidth=2.5, label='Cascade', color='red')
+    ax.set_ylabel('Phase (radians)')
+    ax.set_title('Cascaded All-pass: Phase\n(phases add together!)')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+            
+cascade_allpass_for_arbitrary_phase()
+
+
 
 
 
 
 # calculate_group_delay()
-create_allpass_filter()
+# create_allpass_filter()
