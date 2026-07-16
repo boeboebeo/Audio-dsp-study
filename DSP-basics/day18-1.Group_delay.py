@@ -358,6 +358,45 @@ def cascade_allpass_for_arbitrary_phase():
             
 cascade_allpass_for_arbitrary_phase()
 
+"""all-pass filter 사용예시
+
+1) phase correction (위상보정)
+: multiple processing stages -> phase drift
+
+    ex. comp -> eq -> saturation -> crossover -> limiter 
+    이렇게 다양한 플러그인을 걸었을때 
+
+    EQ도, 컴프안의 사이드 체인 필터도, crossover 도 위상을 바꾼다. 
+    => 원래보다 주파수마다 위상이 많이 틀어짐
+
+    => so, 마지막에 all-pass filter 를 하나 넣어서 틀어진 만큼 반대로 위상만 돌려줌
+        ex. multiband comp의 low, mid, high 각각의 대역에 위상이 다다르게 갖게 되는데,
+        그걸 다시 합칠때 all pass 를 써서 위상을 맞춤
+
+2) Group delay compensation
+: Butterworth EQ 를 만들었는데, 각 주파수의 group delay 는 주파수 별로 다르다.
+=> 트랜지언트가 흐려질 수 있으므로 all-pass 를 설계해서 추가 delay 를 준다. 
+    + 모든 주파수가 다 동일한 시간에 도착할 수 있게 원래 덜 지연있던거를 더 지연시켜버림
+
+3) Stereo phase adjustment
+ : 왼족오른쪽 채널중 오른쪽을 좀 늦춰서 스테레오 효과를 만들기도..
+
+
+4) minimum <-> linear phase conversion
+ **부족한 phase 를 all pass filter 로 채우면 
+
+ minimum phase EQ + all-pass => phase 만 수정 
+
+    => linear 에 가까운 응답! 가질 수 있다.
+
+
+    !! 매우 복잡함..뭐 단순히 linear phase fir 을 All-pass 몇개만 붙여서
+    그대로 만들 수 있는것은 아니다.
+
+
+
+"""
+
 
 
 
