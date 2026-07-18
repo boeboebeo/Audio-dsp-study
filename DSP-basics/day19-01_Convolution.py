@@ -415,6 +415,19 @@ def understand_overlap_add():
 
     **현재 계산할 샘플이 뭔지를 그걸 RAM 에 올려놓고 CPU 처리를 기다려야 하기 때문에
     효율적으로 원형버퍼라는걸 사용함 ( RAM 안에 존재 )
+
+        => Partitioned Convolution 
+        FFT 시 IR 을 작은 taps 씩 잘라서 처리함
+
+        원래 IR = 4096 taps 였다면 이걸
+        64, 64, 64, .... 64 로 나눈다.
+        => 그러면 첫번째 64 taps 는 입력이 64 Samples 만큼만 들어와도 바로 FFT 가능
+        (레이턴시 줄어들 수 있음)
+        
+            - 첫 64 taps 는 초기반사음
+            - 그 다음은 그 다음 잔향음..이렇게 나옴
+        **partitioned convolution
+            : 큰 FFT 하나를 작은 FFT 여러개로 나누어서, 계산을 미리미리 시작하는 기술
     """
 
 
