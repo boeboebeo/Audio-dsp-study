@@ -246,7 +246,125 @@ def understand_interpolation_and_decimation():
 
     """
 
-def 
+def demonstrate_sample_rate_conversion():
+    fs_old = 44100
+    duration = 0.5
+    t = np.linspace(0, duration, int(fs_old*duration), endpoint=False)
+
+    # mix of frequencies
+    f1, f2 = 2000, 15000
+    signal_orig = 0.5*np.sin(2*np.pi*f1*t) + 0.5*np.sin(2*np.pi*f2*t)
+
+    # Resample to 48 kHz (Upsampling)
+    fs_new = 48000
+    ratio = fs_new / fs_old
+
+    # proper resampling (uses anti-aliasing filter internally)
+    signal_resampled = signal.resample(signal_orig, int(len(signal_orig)*ratio))
+        #원래의 신호의 개수에다가 ratio 를 곱해서 리샘플링 시행
+
+    # Visaulization
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+
+    # plot 1: Original signal
+    ax = axes[0, 0]
+    ax.plot(t[:100], signal_orig[:100], linewidth=0.5, color='blue')
+        # 왜 2000 까지만 찍는거지
+    ax.set_ylabel('Amplitude')
+    ax.set_title(f'Original Signal\n({fs_old}Hz, {len(signal_orig)} samples)')
+    ax.grid(True, alpha=0.3)
+
+    # plot 2: Resampled signal
+    ax = axes[0, 1]
+    t_new = np.linspace(0, duration, int(fs_new*duration), endpoint=False)
+    ax.plot(t_new[:100], signal_resampled[:100], linewidth=0.5, color='red')
+    ax.set_ylabel('Amplitude')
+    ax.set_title(f'Resampled Signal\n({fs_new}Hz, {(len(signal_resampled))} samples)')
+    ax.grid(True, alpha=0.3)
+
+    # plot 3: Spectrum comparison
+    ax = axes[1, 0]
+    X = np.fft.rfft(signal_orig)
+
+    freq_orig = np.fft.rfftfreq(
+        len(signal_orig),
+        d = 1/fs_old
+    )   #이렇게 하면 //2 로 나누지 않아도 됨 그냥 중복되지 않는곳까지만 계산해서 출력함
+    mag_orig = np.abs(X)
+
+    # ax.semilogy(freq_orig, mag_orig, linewidth=1, color='blue')
+        # 한 축만 로그스케일로 그리는 그래프
+        # ax.set_yscale('log') 와 같음 -> 근데 여기서는 이미 dB 로 log 써서 계산해놨으니 필요 없음
+    
+    ax.plot(freq_orig, mag_orig, linewidth=1, color='blue')
+    ax.axvline(fs_old/2, color='r', linestyle='--', alpha=0.5, label=f'Nyquist {fs_old/2}Hz')
+    ax.set_xlabel('Frequency (Hz)')
+    ax.set_ylabel('Magnitude')
+    ax.set_title('Original Spectrum')
+    ax.legend()
+    ax.grid(True, alpha=0.3, which='both')
+    ax.set_xlim(0, 25000)
+
+    """
+    ax = axes[1, 0]
+    freqs_orig = np.fft.rfftfreq(len(signal_orig), d=1/fs_old)[:len(signal_orig)//2]
+    mag_orig = np.abs(np.fft.fft(signal_orig))[:len(signal_orig)//2]
+        => 원래 코드의 문제점:
+
+    fft() 를 쓰게 되면 X = np.fft.fft(x)에는 
+        0 1 2 3 4 3 2 1 이렇게 절반이 중복된다. 
+
+        => np.fft.rfft(x) 는 'r'을 붙임으로써, 애초에 중복되는 뒤 절반을 계산하지 않음!
+            0 1 2 3 4 까지만 계산하게 한다. 
+
+        그래서 rfftfreq() 는 이미 0부터 nyquist 까지만 만들기 때문에 //2 를 할 필요 없음
+
+    """
+
+    # plot4: Resampled spectrum
+    ax = axes[1, 1]
+    freq_new = np.fft.rfftfreq(len(signal_resampled), d=1/fs_new)
+    X_new = np.fft.rfft(signal_resampled)
+    mag_new = np.abs(X_new)
+
+    ax.plot(freq_new, mag_new, linewidth=1, color='red')
+    ax.axvline(fs_new/2, color='r', linestyle='--', alpha=0.5, label=f'Nyquist {fs_new/2}Hz')
+    ax.set_xlabel('Frequency(Hz)')
+    ax.set_ylabel('Magnitude')
+    ax.set_title('Resampled Spectrum')
+    ax.legend()
+    ax.grid(True, alpha=0.3, which='both')
+    ax.set_xlim(0, 25000)
+    
+    # 그래프를 확인해보면 fs_old, fs_new 버전의 샘플레이트로 만든 신호의
+    # 진폭이 미세하게 다른걸 확인할 수 있는데 이것은
+    # => signal.resample() 이 새로운 샘플위치에서 다시 계산하는 함수이기 때문에 미세한 차이를 유발한다.
+    # 실제로는 signal.resample_plot()를 더 많이 사용함
 
 
-visualize_aliasing()
+    plt.tight_layout()
+    plt.show()
+    
+def practical_interpolation_methods():
+    # 다양한 보간방법
+    """[Interpolation Techniques]
+
+    1) Nearest neighbor (최근접 이웃)
+
+    2) Linear interpolation
+
+    3) Cubic interpolation(3차)
+
+    4) Sinc interpolation (Ideal)
+
+    => Practical choice
+        - Real-time : Linear or cubic
+        - High quality : Sinc (windowed)
+    
+    """
+
+# demonstrate_sample_rate_conversion()
+
+
+
+# visualize_aliasing()
