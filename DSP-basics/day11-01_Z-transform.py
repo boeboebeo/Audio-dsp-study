@@ -132,7 +132,7 @@ def explore_poles_and_zeros():
          = (b0 + b1*z^-1 + ...) / (1 + a1*z^-1 + ...)
 
     ZEROS:
-    Values of z where Numerator = 0
+    Values of z where Numerator = 0 
 
     POLES:
     Values of z where Denominator = 0
